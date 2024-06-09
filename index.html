@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Google Maps Navigation App</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=geometry,places"></script>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div id="map"></div>
+    <div id="inputs">
+        <input type="text" id="start" placeholder="Start address">
+        <input type="text" id="end" placeholder="End address">
+        <button id="get-directions">Get Directions</button>
+        <button id="use-current-location-start">Use Current Location as Start</button>
+        <button id="stop-tracking">Stop Tracking</button>
+    </div>
+    <div id="directions-panel"></div>
+    <button id="center-map" class="ui-button">Center Map</button>
+    <script>
+        let map, marker, watchId, userLocation, endMarker, directions, routeIndex = 0;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 37.7893719, lng: -122.3942 },
+                zoom: 16,
+                heading: 320,
+                tilt: 47.5,
+                mapId: "90f87356969d889c"
+            });
+
+            const directionsService = new google.maps.DirectionsService();
+            const directionsRenderer = new google.maps.DirectionsRenderer({
+                map: map,
+                suppressMarkers: true // This will suppress the default markers
+            });
+            directionsRenderer.setPanel(document.getElementById('directions-panel'));
+
+            const blueDotIcon = {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: '#4285F4',
+                fillOpacity: 1,
+                scale: 6,
+                strokeColor: '#ffffff',
+                strokeWeight: 2
+            };
+
+            // Automatically mark the user's current location on the map and continuously update it
+            if (navigator.geolocation) {
+                watchId = navigator.geolocation.watchPosition((position) => {
+                    userLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    map.setCenter(userLocation);
+                    map.setZoom(17); // Adjust zoom level as needed
+
+                    // Update the marker position
+                    if (marker) {
+                        marker.setPosition(userLocation);
+                    } else {
+                        marker = new google.maps.Marker({
+                            position: userLocation,
+                            map: map,
+                            icon: blueDotIcon,
+                            title: 'Your Location'
+                        });
+                    }
+                }, () => {
+                    alert('Geolocation failed. Please enter your starting address manually.');
+                }, {
+                    enableHighAccuracy: true, // Use high accuracy for better location precision
+                    maximumAge: 0, // Disable caching of the location
+                    timeout: 5000 // Set timeout to 5 seconds
+                });
+            } else {
+                alert('Geolocation is not supported by your browser. Please enter your starting address manually.');
+            }
+
+            document.getElementById('get-directions').addEventListener('click', async () => {
+                const start = document.getElementById('start').value;
+                const end = document.getElementById('end').value;
+
+                const request = {
+                    origin: start === 'Your location' ? new google.maps.LatLng(userLocation.lat, userLocation.lng) : start,
+                    destination: end,
+                    travelMode: 'DRIVING'
+                };
+
+                directionsService.route(request, function(result, status) {
+                    if (status == 'OK') {
+                        directions = result.routes[0].legs[0].steps;
+                        routeIndex = 0;
+
+                        // Animate to the start location of the route
+                        const startLocation = result.routes[0].legs[0].start_location;
+                        const nextStep = directions[routeIndex];
+                        const heading = nextStep.maneuver ? getHeading(startLocation, nextStep.end_location) : 0;
+
+                        animateMap(startLocation, heading, 17, map.getTilt(), () => {
+                            directionsRenderer.setDirections(result);
+
+                            // Add a custom marker for the end point
+                            if (endMarker) {
+                                endMarker.setMap(null); // Remove existing end marker if any
+                            }
+                            endMarker = new google.maps.Marker({
+                                position: result.routes[0].legs[0].end_location,
+                                map: map,
+                                title: 'Destination',
+                                icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' // Use a similar marker icon
+                            });
+                        });
+                    }
+                });
+            });
+
+            document.getElementById('use-current-location-start').addEventListener('click', () => {
+                if (userLocation) {
+                    document.getElementById('start').value = 'Your location';
+                } else {
+                    alert('No user location available.');
+                }
+            });
+
+            document.getElementById('stop-tracking').addEventListener('click', () => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.clearWatch(watchId);
+                }
+            });
+
+            document.getElementById('center-map').addEventListener('click', () => {
+                if (userLocation) {
+                    // If directions are available, use the direction heading
+                    if (directions && directions.length > 0) {
+                        const step = directions[routeIndex];
+                        const heading = getHeading(userLocation, step.end_location);
+                        routeIndex = (routeIndex + 1) % directions.length; // Loop through directions
+                        animateMap(userLocation, heading, 19, 67.5);
+                    } else {
+                        // If no directions are available, just center the map on the user's location
+                        animateMap(userLocation, map.getHeading(), 19, 67.5);
+                    }
+                } else {
+                    alert('No user location available.');
+                }
+            });
+        }
+
+        function animateMap(targetLocation, heading, zoom, tilt, callback) {
+            const targetZoom = zoom;
+            const targetTilt = tilt;
+            const targetCenter = targetLocation;
+            const duration = 2000; // Duration of the animation in milliseconds
+            const steps = 60; // Number of animation steps
+            const interval = duration / steps;
+
+            let stepCount = 0;
+            const startCenter = map.getCenter();
+            const startZoom = map.getZoom();
+            const startTilt = map.getTilt();
+            const startHeading = map.getHeading();
+
+            const centerDeltaLat = (targetCenter.lat - startCenter.lat()) / steps;
+            const centerDeltaLng = (targetCenter.lng - startCenter.lng()) / steps;
+            const zoomDelta = (targetZoom - startZoom) / steps;
+            const tiltDelta = (targetTilt - startTilt) / steps;
+            const headingDelta = (heading - startHeading) / steps;
+
+            function animateStep() {
+                if (stepCount < steps) {
+                    const nextCenter = new google.maps.LatLng(
+                        startCenter.lat() + centerDeltaLat * stepCount,
+                        startCenter.lng() + centerDeltaLng * stepCount
+                    );
+                    const nextZoom = startZoom + zoomDelta * stepCount;
+                    const nextTilt = startTilt + tiltDelta * stepCount;
+                    const nextHeading = startHeading + headingDelta * stepCount;
+
+                    map.setCenter(nextCenter);
+                    map.setZoom(nextZoom);
+                    map.setTilt(nextTilt);
+                    map.setHeading(nextHeading);
+
+                    stepCount++;
+                    requestAnimationFrame(animateStep);
+                } else {
+                    if (callback) callback();
+                }
+            }
+
+            requestAnimationFrame(animateStep);
+        }
+
+        function getHeading(startLocation, endLocation) {
+            const lat1 = google.maps.geometry.spherical.computeHeading(startLocation, endLocation);
+            return lat1;
+        }
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap"></script>
+</body>
+</html>
