@@ -1,0 +1,78 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+
+#map {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 300px;  /* Adjusted to make space for the directions panel */
+    right: 0;
+}
+
+#inputs {
+    position: absolute;
+    top: 10px;
+    left: 320px;  /* Adjusted to make space for the directions panel */
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#inputs input {
+    width: 200px;
+    margin-bottom: 5px;
+    padding: 5px;
+}
+
+#inputs button {
+    width: 100%;
+    padding: 5px;
+    margin-top: 5px;
+}
+
+#directions-panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 300px;
+    overflow-y: auto;
+    background: white;
+    padding: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ui-button {
+    margin: 5px;
+    padding: 5px 10px;
+    font-size: 14px;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ui-button:hover {
+    background-color: #f0f0f0;
+}
+
+#center-map {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px;
+    background: white;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    z-index: 10;
+}
+
+#center-map:hover {
+    background: #f0f0f0;
+}
